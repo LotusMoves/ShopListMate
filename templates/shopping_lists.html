@@ -1,0 +1,88 @@
+<!-- templates/shopping_lists.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2 class="mb-4">Shopping Lists</h2>
+  <form id="add-shopping-list-form" onsubmit="submitAddShoppingListForm(event)">
+    <div class="input-group mb-3">
+      <input type="text" class="form-control" id="shopping-list-name" placeholder="Enter shopping list name" required>
+      <button type="submit" class="btn btn-primary">Add Shopping List</button>
+    </div>
+  </form>
+  <div id="shopping-lists">
+    {% for shopping_list in shopping_lists %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5 class="card-title" data-encrypted-name="{{ shopping_list.name }}"></h5>
+          <a href="{{ url_for('shopping_list', shopping_list_id=shopping_list.id) }}" class="btn btn-primary">Open List</a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <script src="/static/main.js"></script>
+  <script>
+    async function decryptShoppingListNames() {
+      const shoppingListTitles = document.querySelectorAll('[data-encrypted-name]');
+      const aesKeyData = JSON.parse(sessionStorage.getItem("aesKey"));
+
+      // Import the AES key from raw data
+      const aesKey = await crypto.subtle.importKey(
+        "raw",
+        new Uint8Array(aesKeyData),
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+      );
+
+      for (const titleElement of shoppingListTitles) {
+        const encryptedName = titleElement.getAttribute('data-encrypted-name');
+        titleElement.textContent = await decryptData(encryptedName, aesKey);
+      }
+    }
+
+  decryptShoppingListNames();
+
+    async function submitAddShoppingListForm(event) {
+      event.preventDefault();
+      const input = document.getElementById("shopping-list-name");
+      const name = input.value.trim();
+      if (name) {
+        const aesKeyData = JSON.parse(sessionStorage.getItem("aesKey"));
+        console.log("AES Key length:", aesKeyData.length * 8);
+
+        const aesKey = await crypto.subtle.importKey(
+          "raw",
+          new Uint8Array(aesKeyData),
+          { name: "AES-GCM", length: 256 },
+          true,
+          ["encrypt", "decrypt"]
+        );
+        const encryptedName = await encryptData(name, aesKey);
+        const formData = new FormData();
+        formData.append("name", encryptedName);
+
+        // Convert FormData to URLSearchParams
+        const urlSearchParams = new URLSearchParams();
+        for (const pair of formData.entries()) {
+          urlSearchParams.append(pair[0], pair[1]);
+        }
+
+        fetch('/shopping_lists', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Bearer ' + sessionStorage.getItem("access_token")
+          },
+          body: urlSearchParams
+        })
+        .then(response => {
+          if (response.ok) {
+            window.location.reload();
+          } else {
+            console.error("Error adding shopping list");
+          }
+        });
+      }
+    }
+  </script>
+{% endblock %}

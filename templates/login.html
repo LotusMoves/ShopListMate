@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2 class="mb-4">Login</h2>
+  <form id="login-form" onsubmit="submitLoginForm(event)">
+      <p id="message" class="mt-3"></p>
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" required>
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+  </form>
+  <script src="/static/main.js"></script>
+  <script>
+async function submitLoginForm(event) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  const password = formData.get("password");
+  const username = formData.get("username");
+  const user = await fetchUser(username);
+
+  if (user) {
+    sessionStorage.clear();
+
+    const salt = user.salt;
+    const derivedAESKey = await deriveAESKey(password, salt, 1000000, 32);
+    const rawAESKey = await crypto.subtle.exportKey('raw', derivedAESKey);
+    sessionStorage.setItem("aesKey", JSON.stringify(Array.from(new Uint8Array(rawAESKey))));
+    console.log("AES Key length:", rawAESKey.byteLength * 8);
+    const encryptedPassword = await encryptPasswordWithSalt(password, salt);
+    formData.set("password", encryptedPassword);
+
+    // Convert FormData to URLSearchParams
+    const urlSearchParams = new URLSearchParams();
+    for (const pair of formData.entries()) {
+      urlSearchParams.append(pair[0], pair[1]);
+    }
+
+   fetch('/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: urlSearchParams,
+      credentials: 'same-origin' // This will include cookies in the request
+    })
+    .then(async response => {
+      const messageElement = document.getElementById("message");
+      if (response.ok) {
+        sessionStorage.removeItem("access_token"); // Remove access_token from sessionStorage
+        window.location.href = "/shopping_lists";
+      } else {
+        const error = await response.json();
+        messageElement.classList.add("text-danger");
+        messageElement.textContent = error.error;
+      }
+    });
+  } else {
+    const messageElement = document.getElementById("message");
+    messageElement.classList.add("text-danger");
+    messageElement.textContent = "Invalid username";
+  }
+}
+
+
+  async function fetchUser(username) {
+    const response = await fetch(`/api/user/${username}`);
+    if (response.status === 200) {
+        return response.json();
+    } else {
+        return null;
+    }
+  }
+
+</script>
+{% endblock %}
