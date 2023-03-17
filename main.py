@@ -1,106 +1,123 @@
 # main.py
-
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from functools import wraps
-from flask import session, redirect, url_for
-from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
+from flask import Flask, request, jsonify, render_template, redirect, url_for, make_response
+from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity, JWTManager
 from dotenv import load_dotenv
 import os
 
+from flask_jwt_extended.exceptions import NoAuthorizationError
+from sqlalchemy.orm import sessionmaker
+from database import db
+import hashlib, binascii
+from functools import wraps
+from flask_jwt_extended.view_decorators import jwt_required as original_jwt_required, verify_jwt_in_request
+from functools import wraps, partial
+
 load_dotenv()
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shopping_list.db'
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'shopping_list.db')
 app.config['JWT_SECRET_KEY'] = os.environ['JWT_SECRET_KEY']
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 3600
-
 jwt = JWTManager(app)
-db = SQLAlchemy(app)
+db.init_app(app)
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String, unique=True, nullable=False)
-    password = db.Column(db.String, nullable=False)
 
-class ShoppingList(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('shopping_lists', lazy=True))
-
-class GroceryType(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, unique=True, nullable=False)
-
-class Item(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    quantity = db.Column(db.String, nullable=False, default=1)
-    price = db.Column(db.String, nullable=True)
-    shopping_list_id = db.Column(db.Integer, db.ForeignKey('shopping_list.id'), nullable=False)
-    shopping_list = db.relationship('ShoppingList', backref=db.backref('items', lazy=True))
-    grocery_type_id = db.Column(db.Integer, db.ForeignKey('grocery_type.id'), nullable=True)
-    grocery_type = db.relationship('GroceryType', backref=db.backref('items', lazy=True))
-
-db.create_all()
-
-def add_grocery_types():
-    grocery_types = ['Meat', 'Dairy', 'Fruits', 'Vegetables', 'Bakery', 'Frozen', 'Canned Goods', 'Beverages']
-    for grocery_type in grocery_types:
-        if not GroceryType.query.filter_by(name=grocery_type).first():
-            db.session.add(GroceryType(name=grocery_type))
-    db.session.commit()
-
-add_grocery_types()
+from models import User, ShoppingList, Item, GroceryType, add_grocery_types
 
 
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("login", next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
+def jwt_required(fn=None, optional=False):
+    if fn is None:
+        return partial(jwt_required, optional=optional)
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            access_token = request.cookies.get("access_token")
+            if access_token:
+                request.environ["HTTP_AUTHORIZATION"] = f"Bearer {access_token}"
+            verify_jwt_in_request()
+            return fn(*args, **kwargs)
+        except NoAuthorizationError:
+                return redirect(url_for('login'))
 
-@app.route('/register', methods=['POST'])
+    return wrapper
+
+
+@app.route('/register', methods=['POST', 'GET'])
 def register():
-    username = request.form['username']
-    encrypted_password = request.form['encrypted_password']
-    user = User(username=username, password=encrypted_password)
-    db.session.add(user)
-    db.session.commit()
-    return jsonify({'message': 'User registered successfully'})
 
-@app.route('/login', methods=['POST'])
-def login():
-    username = request.form['username']
-    encrypted_password = request.form['encrypted_password']
-    user = User.query.filter_by(username=username, password=encrypted_password).first()
-    if user:
-        access_token = create_access_token(identity=user.id)
-        return jsonify({'access_token': access_token})
-    return jsonify({'error': 'Invalid credentials'})
+    if request.method == 'GET':
+        return render_template('register.html')
 
-
-@app.route('/shopping_lists', methods=['GET', 'POST'])
-@jwt_required
-def shopping_lists():
-    user_id = get_jwt_identity()
 
     if request.method == 'POST':
-        encrypted_name = request.form['encrypted_name']
-        shopping_list = ShoppingList(name=encrypted_name, user_id=user_id)
-        db.session.add(shopping_list)
-        db.session.commit()
-        return jsonify({'message': 'Shopping list created'})
+        print("register you found me: ")
+        username = request.form['username']
+        print(username)
+        encrypted_password = request.form['password']
+        print(encrypted_password)
+        salt = request.form['salt']
 
-    shopping_lists = ShoppingList.query.filter_by(user_id=user_id).all()
-    return jsonify([{'id': sl.id, 'encrypted_name': sl.name} for sl in shopping_lists])
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            return jsonify({'success': False, 'error': 'Username already exists'})
+
+        user = User(username=username, password=encrypted_password, salt=salt)
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'User registered successfully'})
+
+@app.route('/api/user/<username>', methods=['GET'])
+def get_user_salt(username):
+    user = User.query.filter_by(username=username).first()
+    if user:
+        return jsonify({'salt': user.salt})
+    return jsonify({'error': 'User not found'}), 404
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+
+    if request.method == 'POST':
+        username = request.form['username']
+
+        print(username)
+        encrypted_password = request.form['password']
+
+        print(encrypted_password)
+        user = User.query.filter_by(username=username).first()
+
+        print(user.password)
+
+        if user and encrypted_password == user.password:
+            print("true")
+            access_token = create_access_token(identity=user.id)
+            response = make_response(jsonify({"message": "Login successful"}))
+            response.set_cookie("access_token", access_token, httponly=True, secure=True)
+            return response
+        else:
+            return jsonify({"error": "Invalid credentials"}), 401
+
+@app.route('/shopping_lists', methods=['GET', 'POST'])
+@jwt_required(optional=True)
+def shopping_lists():
+    print("hello")
+    user_id = get_jwt_identity()
+    if user_id is not None:
+        user = User.query.get(user_id)
+        if request.method == 'POST':
+            name = request.form['name']
+            shopping_list = ShoppingList(name=name, user=user)
+            db.session.add(shopping_list)
+            db.session.commit()
+        encrypted_shopping_lists = user.shopping_lists
+        return render_template('shopping_lists.html', shopping_lists=encrypted_shopping_lists)
+    return redirect(url_for('login'))
 
 
 @app.route('/shopping_list/<int:shopping_list_id>', methods=['GET', 'PUT', 'DELETE'])
-@jwt_required
+@jwt_required(optional=True)
 def shopping_list(shopping_list_id):
     user_id = get_jwt_identity()
     shopping_list = ShoppingList.query.filter_by(id=shopping_list_id, user_id=user_id).first()
@@ -108,9 +125,9 @@ def shopping_list(shopping_list_id):
         return jsonify({'error': 'Shopping list not found'})
 
     if request.method == 'GET':
-        items = [{'id': item.id, 'encrypted_name': item.name, 'encrypted_quantity': item.quantity, 'encrypted_price': item.price} for item in
+        encrypted_items = [{'id': item.id, 'encrypted_name': item.name, 'encrypted_quantity': item.quantity, 'encrypted_price': item.price} for item in
                  shopping_list.items]
-        return jsonify({'id': shopping_list.id, 'encrypted_name': shopping_list.name, 'encrypted_items': items})
+        return jsonify({'id': shopping_list.id, 'encrypted_name': shopping_list.name, 'encrypted_items': encrypted_items})
 
     if request.method == 'PUT':
         encrypted_name = request.form['encrypted_name']  # Use 'encrypted_name' instead of 'name'
@@ -124,13 +141,13 @@ def shopping_list(shopping_list_id):
         return jsonify({'message': 'Shopping list deleted'})
 
 @app.route('/grocery_types', methods=['GET'])
-@jwt_required
+@jwt_required(optional=True)
 def grocery_types():
     types = GroceryType.query.all()
     return jsonify([{'id': t.id, 'name': t.name} for t in types])
 
 @app.route('/item', methods=['POST'])
-@jwt_required
+@jwt_required(optional=True)
 def add_item():
     encrypted_name = request.form['encrypted_name']
     shopping_list_id = request.form['shopping_list_id']
@@ -145,7 +162,7 @@ def add_item():
     return jsonify({'message': 'Item added'})
 
 @app.route('/item/<int:item_id>', methods=['PUT', 'DELETE'])
-@jwt_required
+@jwt_required(optional=True)
 def item(item_id):
 
     user_id = get_jwt_identity()
@@ -170,7 +187,22 @@ def item(item_id):
         db.session.commit()
         return jsonify({'message': 'Item deleted'})
 
+@app.route('/login.html', methods=['GET'])
+def login_page():
+    return render_template('login.html')
+
+
+@app.route('/register.html', methods=['GET'])
+def register_page():
+    return render_template('register.html')
 
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+        add_grocery_types()
+
+        engine = db.get_engine()
+        Session = sessionmaker(bind=engine)
     app.run(debug=True)
+
