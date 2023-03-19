@@ -1,0 +1,172 @@
+/* Site-wide styles */
+
+/* Body styles */
+body {
+  background-color: #292d36;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding-top: 70px; /* Add padding to the top of the body to make space for the navbar */
+
+}
+
+/* Link styles */
+a {
+  color: #fff;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #007bff;
+}
+
+/* Container styles */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Shopping list styles */
+
+/* Center the shopping list items */
+#shopping-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Style the cards */
+.card {
+  width: 100%;
+  max-width: 350px;
+  height: 100%;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #1c1e26;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+label {
+  color: #656565;
+}
+.card-body {
+  padding: 20px;
+  height: 100%;
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  text-transform: capitalize;
+}
+
+.card-text {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #bbb;
+  line-height: 1.5;
+}
+
+.card-text small {
+  font-style: italic;
+  color: #656565;
+}
+
+.btn-outline-primary {
+  color: #007bff;
+  border-color: #007bff;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  margin-top: 20px;
+}
+
+.btn-outline-primary:hover {
+  background-color: #007bff;
+  color: #fff;
+}
+
+/* Responsive styles */
+@media (max-width: 576px) {
+  .card {
+    max-width: 100%;
+  }
+}
+.navbar {
+background-color: #626a7a;
+color: #fff;
+font-family: Arial, sans-serif;
+padding: 20px;
+}
+
+.navbar-brand {
+font-size: 1.5rem;
+font-weight: bold;
+}
+
+.navbar-nav {
+margin-left: auto;
+}
+
+.nav-item {
+margin-left: 20px;
+}
+
+.nav-link {
+font-size: 1.2rem;
+font-weight: bold;
+text-transform: uppercase;
+}
+
+.nav-link:hover {
+color: #007bff;
+}
+
+/* Offcanvas menu styles */
+
+.offcanvas-header {
+  background-color: #1c1e26;
+  border-bottom: 1px solid #2f3241;
+  color: #fff;
+}
+
+.offcanvas-title {
+  font-size: 1.5rem;
+  margin: 1rem;
+}
+
+.offcanvas-body {
+  background-color: #212529;
+  padding: 1rem;
+}
+
+.navbar-nav .nav-link {
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.navbar-nav .nav-link:hover {
+  color: #007bff;
+}
+
+
+/* Close button styles */
+.btn-close {
+  color: #fff;
+  font-size: 1.5rem;
+  opacity: 0.5;
+}
+
+.btn-close:hover {
+  color: #007bff;
+  opacity: 1;
+}

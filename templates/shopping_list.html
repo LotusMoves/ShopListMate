@@ -1,0 +1,330 @@
+<!-- templates/shopping_list.html -->
+{% extends 'base.html' %}
+{% block header %}
+
+<style>
+/* Add item form styles */
+
+/* Hide the form by default */
+#add-item-form {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-40px);
+}
+
+/* Animate the form when it is shown */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Show the form when toggled */
+#add-item-form.animate-show {
+  animation: slideIn 0.5s ease-in-out forwards;
+  opacity: 1;
+  visibility: visible;
+}
+
+.marked-item {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="container my-1">
+  <h2 class="mb-4 text-center" id="shopping-list-title" data-encrypted-name="{{ shopping_list.name }}"></h2>
+  <div class="text-end">
+    <button type="button" class="btn btn-outline-danger mt-2 me-2" onclick="confirmDelete()">Delete</button>
+    <button type="button" class="btn btn-outline-primary mt-2" onclick="toggleAddItemForm()">Add</button>
+  </div>
+</div>
+
+<div id="add-item-form" class="collapse">
+  <div class="card mb-3" style="width: 100%; max-width: 100%;">
+    <div class="card-header btn-outline-primary text-white rounded-0" style="text-align: center; cursor: default; background-color: transparent;">
+      <h5 class="card-title mb-0">Add Item</h5>
+    </div>
+    <div class="card-body">
+      <form onsubmit="submitAddItemForm(event)">
+        <div class="form-floating mb-3">
+          <input type="text" class="form-control rounded-0" id="item-name" placeholder=" " required>
+          <label for="item-name">Item Name</label>
+        </div>
+        <div class="form-floating mb-3">
+          <input type="number" class="form-control rounded-0" id="item-quantity" placeholder=" "  required>
+          <label for="item-quantity">Quantity</label>
+        </div>
+        <div class="form-floating mb-3">
+          <select class="form-select rounded-0" id="item-type">
+            {% for grocery_type in grocery_types %}
+              <option value="{{ grocery_type.id }}">{{ grocery_type.name }}</option>
+            {% endfor %}
+          </select>
+          <label for="item-type">Item Type</label>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit"  class="btn btn-outline-primary mt-2">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<div id="shopping-list-items" class="row">
+  {% for item in shopping_list.items %}
+      <div class="col-12 col-sm-6 col-lg-4 mb-4">
+    <div class="card h-100 {{ 'marked-item' if item.checked }}" data-item-id="{{ item.id }}" data-marked="{{ item.checked }}" onclick="toggleChecked(event)">
+      <div class="card-body">
+            <div class="row">
+              <div class="col-8">
+                <h5 class="card-title mb-3" data-encrypted-name="{{ item.name }}"></h5>
+              </div>
+              <div class="col-4 text-right">
+                <p class="card-text small mb-2" data-item-type="{{item.grocery_type.id}}">{{ item.grocery_type.name }}</p>
+              </div>
+            </div>
+            <p class="card-text mb-2" data-encrypted-quantity="{{ item.quantity }}"></p>
+
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2" data-item-id="{{ item.id }}" onclick="editItem(event); event.stopPropagation()">Edit</button>
+
+
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+</div>
+
+  <script type="text/javascript"  src="/static/js/main.js"></script>
+  <script>
+
+    let currentItemId;
+    function editItem(event) {
+      const itemId = event.currentTarget.getAttribute('data-item-id');
+      currentItemId = itemId;
+      const itemName = document.querySelector('[data-encrypted-name]').textContent;
+      const itemQuantity = document.querySelector('[data-encrypted-quantity]').getAttribute('data-encrypted-quantity');
+      const itemType = document.querySelector('[data-item-type]').getAttribute('data-item-type');
+
+      const formTitle = document.querySelector('#add-item-form .card-header .card-title');
+      formTitle.textContent = 'Edit Item';
+
+      const itemNameInput = document.getElementById('item-name');
+      itemNameInput.value = itemName;
+
+      const itemQuantityInput = document.getElementById('item-quantity');
+      itemQuantityInput.value = itemQuantity;
+
+      const itemTypeInput = document.getElementById('item-type');
+      itemTypeInput.value = itemType;
+
+
+      toggleAddItemForm();
+    }
+
+async function toggleChecked(event) {
+    const card = event.currentTarget;
+    const itemId = card.getAttribute('data-item-id');
+    const isMarked = card.getAttribute('data-marked') === 'true';
+
+    try {
+      // Call the backend API
+      const response = await fetch(`/items/${itemId}/toggle_checked`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Update the marked state and appearance
+        if (isMarked) {
+          card.classList.remove('marked-item');
+          card.setAttribute('data-marked', 'false');
+        } else {
+          card.classList.add('marked-item');
+          card.setAttribute('data-marked', 'true');
+        }
+      } else {
+        console.error('Failed to update item marked state');
+      }
+    } catch (error) {
+      console.error('Error updating item marked state:', error);
+    }
+  }
+
+function toggleAddItemForm() {
+  var form = document.getElementById("add-item-form");
+  if (form.classList.contains("animate-show")) {
+    form.classList.remove("animate-show");
+    setTimeout(function() {
+      form.style.display = "none";
+    }, 300);
+  } else {
+    form.style.display = "block";
+    setTimeout(function() {
+      form.classList.add("animate-show");
+    }, 0);
+  }
+}
+
+// Get the add-item-form element
+const addItemForm = document.querySelector('#add-item-form');
+
+// Add an event listener to the document to listen for click events
+document.addEventListener('click', (event) => {
+  // Check if the click happened outside the add-item-form element
+  if (!addItemForm.contains(event.target)) {
+    // Check if the add-item-form element has the animate-show class
+    if (addItemForm.classList.contains('animate-show')) {
+      // Call the toggleAddItemForm() function to hide the form
+      toggleAddItemForm();
+    }
+  }
+});
+
+async function decryptShoppingListDetails() {
+  const aesKeyData = JSON.parse(sessionStorage.getItem("aesKey"));
+
+  const aesKey = await crypto.subtle.importKey(
+    "raw",
+    new Uint8Array(aesKeyData),
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+
+  const titleElement = document.getElementById("shopping-list-title");
+  if (titleElement) {
+    const encryptedName = titleElement.getAttribute('data-encrypted-name');
+    titleElement.textContent = await decryptData(encryptedName, aesKey);
+  }
+
+  const itemElements = document.querySelectorAll('[data-item-id]');
+  for (const itemElement of itemElements) {
+    const encryptedNameElement = itemElement.querySelector('[data-encrypted-name]');
+    const encryptedQuantityElement = itemElement.querySelector('[data-encrypted-quantity]');
+
+    if (encryptedNameElement && encryptedQuantityElement) {
+      const encryptedName = encryptedNameElement.getAttribute('data-encrypted-name');
+      const encryptedQuantity = encryptedQuantityElement.getAttribute('data-encrypted-quantity');
+
+      encryptedNameElement.textContent = await decryptData(encryptedName, aesKey);
+      encryptedNameElement.setAttribute('data-encrypted-name',encryptedNameElement.textContent);
+      encryptedQuantityElement.textContent = 'Quantity: ' + await decryptData(encryptedQuantity, aesKey);
+      encryptedQuantityElement.setAttribute('data-encrypted-quantity',await decryptData(encryptedQuantity, aesKey));
+
+    }
+  }
+}
+
+decryptShoppingListDetails();
+
+async function submitAddItemForm(event) {
+  event.preventDefault();
+  const itemName = document.getElementById("item-name").value.trim();
+  const itemQuantity = document.getElementById("item-quantity").value.trim();
+  const itemType = document.getElementById("item-type").value;
+  if (itemName && itemQuantity) {
+    const aesKeyData = JSON.parse(sessionStorage.getItem("aesKey"));
+
+    const aesKey = await crypto.subtle.importKey(
+      "raw",
+      new Uint8Array(aesKeyData),
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+
+    const encryptedName = await encryptData(itemName, aesKey);
+    const encryptedQuantity = await encryptData(itemQuantity, aesKey);
+
+    const formData = new FormData();
+    formData.append("encrypted_name", encryptedName);
+    formData.append("encrypted_quantity", encryptedQuantity);
+    formData.append("item-type", itemType);
+
+    const formTitle = document.querySelector('#add-item-form .card-header .card-title');
+    if (formTitle.textContent === 'Edit Item') {
+
+      formData.append("item-id", currentItemId);
+
+      // Convert FormData to URLSearchParams
+      const urlSearchParams = new URLSearchParams();
+      for (const pair of formData.entries()) {
+        urlSearchParams.append(pair[0], pair[1]);
+      }
+
+      fetch(`/item/${currentItemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: urlSearchParams
+      })
+      .then(response => {
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          console.error("Error updating item");
+        }
+      });
+    } else {
+      formData.append("checked", false);
+
+      // Convert FormData to URLSearchParams
+      const urlSearchParams = new URLSearchParams();
+      for (const pair of formData.entries()) {
+        urlSearchParams.append(pair[0], pair[1]);
+      }
+
+      fetch(`/shopping_list/{{ shopping_list.id }}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: urlSearchParams
+      })
+      .then(response => {
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          console.error("Error adding item");
+        }
+      });
+    }
+  }
+}
+async function confirmDelete() {
+  const confirmation = confirm("Are you sure you want to delete this shopping list?");
+  if (confirmation) {
+    try {
+      const response = await fetch(`/shopping_list/{{ shopping_list.id }}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        // Redirect to a different page, for example, the home page, after deletion
+        window.location.href = "/";
+      } else {
+        console.error("Failed to delete shopping list");
+      }
+    } catch (error) {
+      console.error("Error deleting shopping list:", error);
+    }
+  }
+}
+  </script>
+{% endblock %}

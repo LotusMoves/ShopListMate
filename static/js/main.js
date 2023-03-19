@@ -1,6 +1,7 @@
-// static/main.js
+// static/js/main.js
 
 async function deriveKey(password, salt, iterations, keyLength) {
+
   const encoder = new TextEncoder();
   const passwordBuffer = encoder.encode(password);
   const saltBuffer = encoder.encode(salt);
@@ -89,6 +90,9 @@ async function encryptData(data, aesKey) {
 }
 
 async function decryptData(encryptedData, aesKey) {
+   if (!encryptedData) {
+    return null;
+  }
   const [ivBase64, encryptedDataBase64] = encryptedData.split('.');
   const iv = Uint8Array.from(atob(ivBase64), (c) => c.charCodeAt(0));
   const encryptedDataBuffer = Uint8Array.from(
@@ -104,3 +108,4 @@ async function decryptData(encryptedData, aesKey) {
 
   return new TextDecoder().decode(dataBuffer);
 }
+

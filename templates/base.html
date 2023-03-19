@@ -8,10 +8,52 @@
     <title>Shopping List App</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script type="application/javascript" src="/static/js/main.js"></script>
+    <link rel="stylesheet" href="/static/css/shoppinglist.css">
+    {% block header %}
+    {% endblock %}
+    {% if user %}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+          <div class="container-fluid">
+            <a class="navbar-brand" href="#">Shopping List App</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="navbarNav" aria-labelledby="navbarNavLabel">
+              <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="navbarNavLabel">Menu</h5>
+                <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+              </div>
+              <div class="offcanvas-body">
+                <ul class="navbar-nav mb-2 mb-lg-0">
+                  <li class="nav-item">
+                    <a class="nav-link" href="/shopping_lists">Lists</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="/logout">Logout</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="#">Contact</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </nav>
+    {% endif %}
+
 </head>
 <body>
-    <div class="container mt-5">
+    <div class="container">
         {% block content %}{% endblock %}
     </div>
+<script>
+
+if (!JSON.parse(sessionStorage.getItem("aesKey")) && window.location.pathname !== "/login" && window.location.pathname !== '/register') {
+    window.location.replace("/logout");
+}
+
+</script>
 </body>
 </html>

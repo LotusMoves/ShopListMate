@@ -18,12 +18,10 @@
             <label for="verify_password" class="form-label">Confirm Password</label>
             <input type="password" class="form-control" id="verify_password" name="verify_password" required>
         </div>
-        <button type="submit" class="btn btn-primary">Register</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
 </form>
-  <script src="/static/main.js"></script>
 <script>
         async function submitRegisterForm(event) {
-    console.log("made it this far");
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
