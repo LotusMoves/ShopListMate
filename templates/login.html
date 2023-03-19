@@ -13,9 +13,11 @@
             <input type="password" class="form-control" id="password" name="password" required>
         </div>
         <button type="submit" class="btn btn-primary">Login</button>
+
+        <button type="button" onclick="window.location.replace('/register')" class="btn btn-primary">Register</button>
   </form>
-  <script src="/static/main.js"></script>
   <script>
+      sessionStorage.clear();
 async function submitLoginForm(event) {
   event.preventDefault();
   const form = event.target;
@@ -25,13 +27,10 @@ async function submitLoginForm(event) {
   const user = await fetchUser(username);
 
   if (user) {
-    sessionStorage.clear();
-
     const salt = user.salt;
     const derivedAESKey = await deriveAESKey(password, salt, 1000000, 32);
     const rawAESKey = await crypto.subtle.exportKey('raw', derivedAESKey);
     sessionStorage.setItem("aesKey", JSON.stringify(Array.from(new Uint8Array(rawAESKey))));
-    console.log("AES Key length:", rawAESKey.byteLength * 8);
     const encryptedPassword = await encryptPasswordWithSalt(password, salt);
     formData.set("password", encryptedPassword);
 

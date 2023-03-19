@@ -1,26 +1,36 @@
 <!-- templates/shopping_lists.html -->
 {% extends 'base.html' %}
 
+
 {% block content %}
-  <h2 class="mb-4">Shopping Lists</h2>
-  <form id="add-shopping-list-form" onsubmit="submitAddShoppingListForm(event)">
-    <div class="input-group mb-3">
-      <input type="text" class="form-control" id="shopping-list-name" placeholder="Enter shopping list name" required>
-      <button type="submit" class="btn btn-primary">Add Shopping List</button>
-    </div>
-  </form>
-  <div id="shopping-lists">
-    {% for shopping_list in shopping_lists %}
-      <div class="card mb-3">
-        <div class="card-body">
-          <h5 class="card-title" data-encrypted-name="{{ shopping_list.name }}"></h5>
-          <a href="{{ url_for('shopping_list', shopping_list_id=shopping_list.id) }}" class="btn btn-primary">Open List</a>
-        </div>
-      </div>
-    {% endfor %}
+<div class="container my-1">
+  <h1 class="mb-4 text-center" id="shopping-list-title">Shopping Lists</h1>
+</div>
+  <!-- Shopping list form -->
+<form id="add-shopping-list-form">
+  <div class="input-group mb-3">
+    <input type="text" class="form-control" id="shopping-list-name" placeholder="Enter shopping list name" required>
+    <button type="submit" class="btn btn-primary">Add Shopping List</button>
   </div>
-  <script src="/static/main.js"></script>
+</form>
+
+<!-- Shopping lists -->
+<div id="shopping-lists" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+  {% for shopping_list in shopping_lists %}
+  <div class="col-12 col-md-6 col-lg-4">
+    <a href="{{ url_for('shopping_list', shopping_list_id=shopping_list.id)|escape }}" class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title" data-encrypted-name="{{ shopping_list.name }}"></h5>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+
+
   <script>
+    document.getElementById("add-shopping-list-form").addEventListener("submit", submitAddShoppingListForm);
     async function decryptShoppingListNames() {
       const shoppingListTitles = document.querySelectorAll('[data-encrypted-name]');
       const aesKeyData = JSON.parse(sessionStorage.getItem("aesKey"));
@@ -48,7 +58,6 @@
       const name = input.value.trim();
       if (name) {
         const aesKeyData = JSON.parse(sessionStorage.getItem("aesKey"));
-        console.log("AES Key length:", aesKeyData.length * 8);
 
         const aesKey = await crypto.subtle.importKey(
           "raw",
@@ -71,7 +80,6 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Bearer ' + sessionStorage.getItem("access_token")
           },
           body: urlSearchParams
         })
